@@ -135,28 +135,26 @@ async function shareToFacebook() {
   try {
     const postText = formatForFacebook(articleData.title, articleData.excerpt, articleData.url);
     
+    // クリップボードにコピー
+    await navigator.clipboard.writeText(postText);
+    
     // 新しいタブでFacebookを開く
     const fbTab = await chrome.tabs.create({
       url: 'https://www.facebook.com/',
       active: true
     });
     
-    // タブが読み込まれるまで待機
-    chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-      if (tabId === fbTab.id && info.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(listener);
-        
-        // 投稿スクリプトを実行
-        chrome.scripting.executeScript({
-          target: { tabId: fbTab.id },
-          func: fillFacebookPost,
-          args: [postText]
-        });
-        
-        showStatus('Facebookの投稿画面を開きました', 'success');
-        setLoading(false);
-      }
-    });
+    // タブが読み込まれるまで待機してスクリプトを実行
+    setTimeout(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: fbTab.id },
+        func: fillFacebookPost,
+        args: [postText]
+      }).catch(err => console.error('Script execution failed:', err));
+    }, 3000);
+    
+    showStatus('Facebookを開きました。投稿内容はクリップボードにコピー済みです', 'success');
+    setLoading(false);
   } catch (error) {
     showStatus('エラー: ' + error.message, 'error');
     setLoading(false);
@@ -171,25 +169,24 @@ async function shareToThreads() {
   try {
     const postText = formatForThreads(articleData.title, articleData.excerpt, articleData.url);
     
+    // クリップボードにコピー
+    await navigator.clipboard.writeText(postText);
+    
     const threadsTab = await chrome.tabs.create({
       url: 'https://www.threads.net/',
       active: true
     });
     
-    chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-      if (tabId === threadsTab.id && info.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(listener);
-        
-        chrome.scripting.executeScript({
-          target: { tabId: threadsTab.id },
-          func: fillThreadsPost,
-          args: [postText]
-        });
-        
-        showStatus('Threadsの投稿画面を開きました', 'success');
-        setLoading(false);
-      }
-    });
+    setTimeout(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: threadsTab.id },
+        func: fillThreadsPost,
+        args: [postText]
+      }).catch(err => console.error('Script execution failed:', err));
+    }, 3000);
+    
+    showStatus('Threadsを開きました。投稿内容はクリップボードにコピー済みです', 'success');
+    setLoading(false);
   } catch (error) {
     showStatus('エラー: ' + error.message, 'error');
     setLoading(false);
@@ -204,15 +201,26 @@ async function shareToX() {
   try {
     const postText = formatForX(articleData.title, articleData.excerpt, articleData.url);
     
+    // クリップボードにコピー
+    await navigator.clipboard.writeText(postText);
+    
     // X (Twitter) のインテント URLを使用
     const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`;
     
-    await chrome.tabs.create({
+    const xTab = await chrome.tabs.create({
       url: intentUrl,
       active: true
     });
     
-    showStatus('Xの投稿画面を開きました', 'success');
+    // 投稿ボタンを自動でクリック
+    setTimeout(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: xTab.id },
+        func: autoClickXPostButton
+      }).catch(err => console.error('Script execution failed:', err));
+    }, 2000);
+    
+    showStatus('Xを開きました。投稿内容はクリップボードにコピー済みです', 'success');
     setLoading(false);
   } catch (error) {
     showStatus('エラー: ' + error.message, 'error');
@@ -220,82 +228,103 @@ async function shareToX() {
   }
 }
 
-// Facebook投稿フォームに入力する関数（ページ内で実行）
-function fillFacebookPost(text) {
-  // 投稿ボックスを探してクリック
+// X投稿ボタンを自動クリック（ページ内で実行）
+function autoClickXPostButton() {
+  // 投稿ボタンを探す
   const selectors = [
-    '[aria-label*="投稿"]',
-    '[role="button"][aria-label*="何を"]',
-    '[placeholder*="何を"]',
-    'div[role="textbox"]',
-    '[contenteditable="true"]'
+    '[data-testid="tweetButton"]',
+    '[data-testid="tweetButtonInline"]',
+    'button[type="button"][role="button"]'
   ];
   
-  let postBox = null;
+  let postButton = null;
   for (const selector of selectors) {
-    postBox = document.querySelector(selector);
-    if (postBox) break;
+    const buttons = document.querySelectorAll(selector);
+    for (const btn of buttons) {
+      const text = btn.textContent || btn.innerText;
+      if (text && (text.includes('Post') || text.includes('ポスト') || text.includes('投稿'))) {
+        postButton = btn;
+        break;
+      }
+    }
+    if (postButton) break;
   }
   
-  if (postBox) {
-    // クリックしてフォーカス
-    postBox.click();
+  if (postButton && !postButton.disabled) {
+    // ボタンをクリック
+    postButton.click();
+    console.log('X投稿ボタンをクリックしました');
+  } else {
+    console.log('X投稿ボタンが見つからないか、無効です');
+  }
+}
+
+// Facebook投稿フォームに入力する関数（ページ内で実行）
+function fillFacebookPost(text) {
+  // 複数の方法を試す
+  setTimeout(() => {
+    // 方法1: contenteditable要素を探す
+    const editables = document.querySelectorAll('[contenteditable="true"]');
+    let filled = false;
     
-    setTimeout(() => {
-      // テキストを設定
-      postBox.focus();
-      
-      // contenteditable要素の場合
-      if (postBox.getAttribute('contenteditable') === 'true') {
-        postBox.textContent = text;
+    for (const editable of editables) {
+      // 投稿ボックスらしい要素を探す
+      const placeholder = editable.getAttribute('aria-label') || editable.getAttribute('placeholder') || '';
+      if (placeholder.includes('何') || placeholder.includes('考え') || placeholder.includes('投稿')) {
+        editable.click();
+        editable.focus();
+        
+        // テキストを設定
+        editable.textContent = text;
         
         // inputイベントをトリガー
-        const event = new Event('input', { bubbles: true });
-        postBox.dispatchEvent(event);
-      } else {
-        // input要素の場合
-        postBox.value = text;
-        postBox.dispatchEvent(new Event('input', { bubbles: true }));
+        const inputEvent = new Event('input', { bubbles: true });
+        editable.dispatchEvent(inputEvent);
+        
+        const changeEvent = new Event('change', { bubbles: true });
+        editable.dispatchEvent(changeEvent);
+        
+        filled = true;
+        break;
       }
-    }, 500);
-  } else {
-    alert('投稿ボックスが見つかりませんでした。手動で投稿してください。\n\n投稿内容:\n' + text);
-  }
+    }
+    
+    if (!filled) {
+      // 方法2: クリップボードから貼り付けを促す
+      alert('投稿ボックスをクリックして、Ctrl+V（またはCmd+V）で貼り付けてください。\n\n投稿内容はクリップボードにコピー済みです。');
+    }
+  }, 1000);
 }
 
 // Threads投稿フォームに入力する関数（ページ内で実行）
 function fillThreadsPost(text) {
-  const selectors = [
-    '[aria-label*="スレッド"]',
-    '[placeholder*="スレッド"]',
-    'div[role="textbox"]',
-    '[contenteditable="true"]'
-  ];
-  
-  let postBox = null;
-  for (const selector of selectors) {
-    postBox = document.querySelector(selector);
-    if (postBox) break;
-  }
-  
-  if (postBox) {
-    postBox.click();
+  setTimeout(() => {
+    const editables = document.querySelectorAll('[contenteditable="true"]');
+    let filled = false;
     
-    setTimeout(() => {
-      postBox.focus();
-      
-      if (postBox.getAttribute('contenteditable') === 'true') {
-        postBox.textContent = text;
-        const event = new Event('input', { bubbles: true });
-        postBox.dispatchEvent(event);
-      } else {
-        postBox.value = text;
-        postBox.dispatchEvent(new Event('input', { bubbles: true }));
+    for (const editable of editables) {
+      const placeholder = editable.getAttribute('aria-label') || editable.getAttribute('placeholder') || '';
+      if (placeholder.includes('スレッド') || placeholder.includes('何') || placeholder.includes('投稿')) {
+        editable.click();
+        editable.focus();
+        
+        editable.textContent = text;
+        
+        const inputEvent = new Event('input', { bubbles: true });
+        editable.dispatchEvent(inputEvent);
+        
+        const changeEvent = new Event('change', { bubbles: true });
+        editable.dispatchEvent(changeEvent);
+        
+        filled = true;
+        break;
       }
-    }, 500);
-  } else {
-    alert('投稿ボックスが見つかりませんでした。手動で投稿してください。\n\n投稿内容:\n' + text);
-  }
+    }
+    
+    if (!filled) {
+      alert('投稿ボックスをクリックして、Ctrl+V（またはCmd+V）で貼り付けてください。\n\n投稿内容はクリップボードにコピー済みです。');
+    }
+  }, 1000);
 }
 
 // すべてのSNSに一括投稿
@@ -309,11 +338,17 @@ async function shareToAll() {
     const threadsText = formatForThreads(articleData.title, articleData.excerpt, articleData.url);
     const xText = formatForX(articleData.title, articleData.excerpt, articleData.url);
     
+    // すべてのテキストをクリップボードに保存（最後にFacebookのテキスト）
+    await navigator.clipboard.writeText(fbText);
+    
     // 1. Facebookタブを開く
     const fbTab = await chrome.tabs.create({
       url: 'https://www.facebook.com/',
       active: false
     });
+    
+    // 少し待ってからThreadsを開く
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // 2. Threadsタブを開く
     const threadsTab = await chrome.tabs.create({
@@ -321,38 +356,41 @@ async function shareToAll() {
       active: false
     });
     
+    // 少し待ってからXを開く
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // 3. Xタブを開く（最後のタブをアクティブに）
     const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(xText)}`;
-    await chrome.tabs.create({
+    const xTab = await chrome.tabs.create({
       url: intentUrl,
       active: true
     });
     
-    // Facebookタブの読み込み完了を待って投稿
-    chrome.tabs.onUpdated.addListener(function fbListener(tabId, info) {
-      if (tabId === fbTab.id && info.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(fbListener);
-        chrome.scripting.executeScript({
-          target: { tabId: fbTab.id },
-          func: fillFacebookPost,
-          args: [fbText]
-        });
-      }
-    });
+    // 各タブにスクリプトを注入
+    setTimeout(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: fbTab.id },
+        func: fillFacebookPost,
+        args: [fbText]
+      }).catch(err => console.error('Facebook script failed:', err));
+    }, 3000);
     
-    // Threadsタブの読み込み完了を待って投稿
-    chrome.tabs.onUpdated.addListener(function threadsListener(tabId, info) {
-      if (tabId === threadsTab.id && info.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(threadsListener);
-        chrome.scripting.executeScript({
-          target: { tabId: threadsTab.id },
-          func: fillThreadsPost,
-          args: [threadsText]
-        });
-      }
-    });
+    setTimeout(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: threadsTab.id },
+        func: fillThreadsPost,
+        args: [threadsText]
+      }).catch(err => console.error('Threads script failed:', err));
+    }, 3000);
     
-    showStatus('3つのSNSの投稿画面を開きました！', 'success');
+    setTimeout(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: xTab.id },
+        func: autoClickXPostButton
+      }).catch(err => console.error('X script failed:', err));
+    }, 2000);
+    
+    showStatus('3つのSNSの投稿画面を開きました！各タブで確認してください', 'success');
     setLoading(false);
     
   } catch (error) {
