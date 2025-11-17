@@ -298,12 +298,76 @@ function fillThreadsPost(text) {
   }
 }
 
+// すべてのSNSに一括投稿
+async function shareToAll() {
+  setLoading(true);
+  showStatus('すべてのSNSに投稿中...', 'info');
+  
+  try {
+    // 各SNS用のテキストを準備
+    const fbText = formatForFacebook(articleData.title, articleData.excerpt, articleData.url);
+    const threadsText = formatForThreads(articleData.title, articleData.excerpt, articleData.url);
+    const xText = formatForX(articleData.title, articleData.excerpt, articleData.url);
+    
+    // 1. Facebookタブを開く
+    const fbTab = await chrome.tabs.create({
+      url: 'https://www.facebook.com/',
+      active: false
+    });
+    
+    // 2. Threadsタブを開く
+    const threadsTab = await chrome.tabs.create({
+      url: 'https://www.threads.net/',
+      active: false
+    });
+    
+    // 3. Xタブを開く（最後のタブをアクティブに）
+    const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(xText)}`;
+    await chrome.tabs.create({
+      url: intentUrl,
+      active: true
+    });
+    
+    // Facebookタブの読み込み完了を待って投稿
+    chrome.tabs.onUpdated.addListener(function fbListener(tabId, info) {
+      if (tabId === fbTab.id && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(fbListener);
+        chrome.scripting.executeScript({
+          target: { tabId: fbTab.id },
+          func: fillFacebookPost,
+          args: [fbText]
+        });
+      }
+    });
+    
+    // Threadsタブの読み込み完了を待って投稿
+    chrome.tabs.onUpdated.addListener(function threadsListener(tabId, info) {
+      if (tabId === threadsTab.id && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(threadsListener);
+        chrome.scripting.executeScript({
+          target: { tabId: threadsTab.id },
+          func: fillThreadsPost,
+          args: [threadsText]
+        });
+      }
+    });
+    
+    showStatus('3つのSNSの投稿画面を開きました！', 'success');
+    setLoading(false);
+    
+  } catch (error) {
+    showStatus('エラー: ' + error.message, 'error');
+    setLoading(false);
+  }
+}
+
 // イベントリスナーを設定
 document.addEventListener('DOMContentLoaded', () => {
   // 記事情報を読み込み
   loadArticleInfo();
   
   // ボタンのイベントリスナー
+  document.getElementById('share-all').addEventListener('click', shareToAll);
   document.getElementById('share-facebook').addEventListener('click', shareToFacebook);
   document.getElementById('share-threads').addEventListener('click', shareToThreads);
   document.getElementById('share-x').addEventListener('click', shareToX);
