@@ -138,6 +138,24 @@
       display: block;
       margin-bottom: 5px;
     }
+    .auth-warning {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      color: #856404;
+    }
+    .auth-warning strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .auth-warning p {
+      margin: 5px 0;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -146,6 +164,15 @@
   <div class="login-info">
     <strong>💡 初回利用時</strong>
     各SNSのボタンをクリックすると、ログインページが開きます。ログイン後、もう一度ボタンをクリックしてください。
+  </div>
+  
+  <div class="auth-warning" id="auth-warning" style="display: none;">
+    <strong>⚠️ 認証が必要な記事</strong>
+    <p id="auth-warning-text"></p>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <button id="use-visible-only" style="flex: 1; padding: 8px; font-size: 12px; background: #28a745;">見えている部分だけ使用</button>
+      <button id="login-first" style="flex: 1; padding: 8px; font-size: 12px; background: #007bff;">ログインしてから再実行</button>
+    </div>
   </div>
   
   <div class="article-info">

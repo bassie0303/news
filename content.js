@@ -1,3 +1,62 @@
+// 認証が必要かどうかを検出する関数
+function detectPaywall() {
+  // ペイウォールの一般的なパターンを検出
+  const paywallIndicators = [
+    // クラス名
+    '.paywall',
+    '.subscription-required',
+    '.premium-content',
+    '.members-only',
+    '.login-required',
+    '[class*="paywall"]',
+    '[class*="subscription"]',
+    '[class*="premium"]',
+    // ID
+    '#paywall',
+    '#subscription-wall',
+    // テキストパターン
+  ];
+  
+  // DOM要素でペイウォールを検出
+  for (const selector of paywallIndicators) {
+    if (document.querySelector(selector)) {
+      return true;
+    }
+  }
+  
+  // テキストパターンで検出
+  const bodyText = document.body.innerText || '';
+  const paywallTexts = [
+    '会員限定',
+    '有料会員',
+    'ログインが必要',
+    '続きを読むには',
+    '購読者限定',
+    'Subscribe to read',
+    'Sign in to continue',
+    'Premium content',
+    'Members only'
+  ];
+  
+  for (const text of paywallTexts) {
+    if (bodyText.includes(text)) {
+      return true;
+    }
+  }
+  
+  // コンテンツが非常に短い場合（ペイウォールの可能性）
+  const articleElement = document.querySelector('article') || document.querySelector('main');
+  if (articleElement) {
+    const text = articleElement.innerText || '';
+    if (text.length < 300) {
+      // 短すぎる場合、ペイウォールの可能性がある
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 // 記事情報を抽出する関数
 function extractArticleInfo() {
   // タイトルを取得
@@ -50,10 +109,15 @@ function extractArticleInfo() {
     .replace(/\n+/g, '\n')
     .trim();
   
+  // 認証検出
+  const requiresAuth = detectPaywall();
+  
   return {
     title,
     url,
-    fullText: articleText
+    fullText: articleText,
+    requiresAuth: requiresAuth,
+    visibleTextLength: articleText.length
   };
 }
 
@@ -127,7 +191,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       title: articleInfo.title,
       url: articleInfo.url,
       excerpt: excerpt,
-      fullText: articleInfo.fullText
+      fullText: articleInfo.fullText,
+      requiresAuth: articleInfo.requiresAuth,
+      visibleTextLength: articleInfo.visibleTextLength
     });
   }
   return true;

@@ -178,6 +178,14 @@ async function loadArticleInfo() {
         document.getElementById('article-title').textContent = response.title || 'タイトルなし';
         document.getElementById('article-url').textContent = response.url || '';
         document.getElementById('article-excerpt').textContent = response.excerpt || '抜粋なし';
+        
+        // 認証が必要な場合の警告表示
+        if (response.requiresAuth) {
+          const authWarning = document.getElementById('auth-warning');
+          const authWarningText = document.getElementById('auth-warning-text');
+          authWarningText.textContent = `この記事は認証が必要な可能性があります。現在見えているテキストは${response.visibleTextLength}文字です。`;
+          authWarning.style.display = 'block';
+        }
       }
     });
   } catch (error) {
@@ -496,6 +504,28 @@ async function shareToAll() {
     setLoading(false);
   }
 }
+
+// 認証警告のボタンイベント
+let userAuthChoice = null; // 'visible' or 'login'
+
+document.getElementById('use-visible-only')?.addEventListener('click', () => {
+  userAuthChoice = 'visible';
+  document.getElementById('auth-warning').style.display = 'none';
+  showStatus('見えている部分だけを使用します。', 'success');
+});
+
+document.getElementById('login-first')?.addEventListener('click', async () => {
+  userAuthChoice = 'login';
+  document.getElementById('auth-warning').style.display = 'none';
+  showStatus('記事ページでログインしてから、もう一度拡張機能を実行してください。', 'info');
+  
+  // 現在のタブをアクティブに
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  await chrome.tabs.update(tab.id, { active: true });
+  
+  // ポップアップを閉じる
+  window.close();
+});
 
 // ログイン状態をリセット（デバッグ用）
 async function resetLoginStatus() {
