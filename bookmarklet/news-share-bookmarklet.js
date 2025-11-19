@@ -329,7 +329,7 @@
   document.getElementById('share-facebook').addEventListener('click', async () => {
     const postText = formatForFacebook(articleData.title, articleData.excerpt, articleData.url);
     await copyToClipboard(postText);
-    window.open('https://www.facebook.com/', '_blank');
+    window.open('https://www.facebook.com/?sk=h_chr', '_blank');
     showStatus('Facebookを開きました。投稿ボックスでCtrl+V（Cmd+V）で貼り付けてください。', 'success');
   });
   
@@ -337,7 +337,7 @@
   document.getElementById('share-threads').addEventListener('click', async () => {
     const postText = formatForThreads(articleData.title, articleData.excerpt, articleData.url);
     await copyToClipboard(postText);
-    window.open('https://www.threads.net/', '_blank');
+    window.open('https://www.threads.net/new', '_blank');
     showStatus('Threadsを開きました。投稿ボックスでCtrl+V（Cmd+V）で貼り付けてください。', 'success');
   });
   
@@ -358,8 +358,8 @@
     
     await copyToClipboard(fbText);
     
-    window.open('https://www.facebook.com/', '_blank');
-    setTimeout(() => window.open('https://www.threads.net/', '_blank'), 500);
+    window.open('https://www.facebook.com/?sk=h_chr', '_blank');
+    setTimeout(() => window.open('https://www.threads.net/new', '_blank'), 500);
     setTimeout(() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(xText)}`, '_blank'), 1000);
     
     showStatus('3つのSNSを開きました！各タブで投稿ボックスをクリックしてCtrl+V（Cmd+V）で貼り付けてください。', 'success');

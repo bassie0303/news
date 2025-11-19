@@ -206,7 +206,7 @@ async function shareToFacebook() {
     
     // 新しいタブでFacebookを開く
     const fbTab = await chrome.tabs.create({
-      url: 'https://www.facebook.com/',
+      url: 'https://www.facebook.com/?sk=h_chr',
       active: true
     });
     
@@ -247,7 +247,7 @@ async function shareToThreads() {
     await navigator.clipboard.writeText(postText);
     
     const threadsTab = await chrome.tabs.create({
-      url: 'https://www.threads.net/',
+      url: 'https://www.threads.net/new',
       active: true
     });
     
@@ -441,7 +441,7 @@ async function shareToAll() {
     
     // 1. Facebookタブを開く
     const fbTab = await chrome.tabs.create({
-      url: 'https://www.facebook.com/',
+      url: 'https://www.facebook.com/?sk=h_chr',
       active: false
     });
     
@@ -450,7 +450,7 @@ async function shareToAll() {
     
     // 2. Threadsタブを開く
     const threadsTab = await chrome.tabs.create({
-      url: 'https://www.threads.net/',
+      url: 'https://www.threads.net/new',
       active: false
     });
     
