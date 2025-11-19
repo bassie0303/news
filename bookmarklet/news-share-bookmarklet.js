@@ -7,6 +7,57 @@
     return;
   }
   
+  // 認証が必要かどうかを検出する関数
+  function detectPaywall() {
+    const paywallIndicators = [
+      '.paywall',
+      '.subscription-required',
+      '.premium-content',
+      '.members-only',
+      '.login-required',
+      '[class*="paywall"]',
+      '[class*="subscription"]',
+      '[class*="premium"]',
+      '#paywall',
+      '#subscription-wall'
+    ];
+    
+    for (const selector of paywallIndicators) {
+      if (document.querySelector(selector)) {
+        return true;
+      }
+    }
+    
+    const bodyText = document.body.innerText || '';
+    const paywallTexts = [
+      '会員限定',
+      '有料会員',
+      'ログインが必要',
+      '続きを読むには',
+      '購読者限定',
+      'Subscribe to read',
+      'Sign in to continue',
+      'Premium content',
+      'Members only'
+    ];
+    
+    for (const text of paywallTexts) {
+      if (bodyText.includes(text)) {
+        return true;
+      }
+    }
+    
+    const articleElement = document.querySelector('article') || document.querySelector('main');
+    if (articleElement) {
+      const text = articleElement.innerText || '';
+      if (text.length < 300) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
   // 記事情報を取得
   function getArticleInfo() {
     const title = document.title || 
@@ -35,7 +86,17 @@
     // 抜粋を生成
     const excerpt = extractImportantSentences(fullText, 800);
     
-    return { title, url, excerpt, fullText };
+    // 認証検出
+    const requiresAuth = detectPaywall();
+    
+    return { 
+      title, 
+      url, 
+      excerpt, 
+      fullText,
+      requiresAuth: requiresAuth,
+      visibleTextLength: fullText.length
+    };
   }
   
   // 重要な情報を含む文を抽出
@@ -205,6 +266,45 @@
           ">×</button>
         </div>
         
+        ${articleData.requiresAuth ? `
+        <div id="auth-warning" style="
+          background: #fff3cd;
+          border: 2px solid #ffc107;
+          padding: 12px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+          font-size: 12px;
+          color: #856404;
+        ">
+          <strong style="display: block; margin-bottom: 8px; font-size: 13px;">⚠️ 認証が必要な記事</strong>
+          <p style="margin: 5px 0; line-height: 1.4;">この記事は認証が必要な可能性があります。現在見えているテキストは${articleData.visibleTextLength}文字です。</p>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button id="use-visible-only" style="
+              flex: 1;
+              padding: 8px;
+              font-size: 12px;
+              background: #28a745;
+              color: white;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              font-weight: 600;
+            ">見えている部分だけ使用</button>
+            <button id="login-first" style="
+              flex: 1;
+              padding: 8px;
+              font-size: 12px;
+              background: #007bff;
+              color: white;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              font-weight: 600;
+            ">ログインしてから再実行</button>
+          </div>
+        </div>
+        ` : ''}
+        
         <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
           <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #666;">記事情報</h3>
           <p style="margin: 5px 0; font-size: 12px; color: #333; word-wrap: break-word;">
@@ -324,6 +424,19 @@
   // イベントリスナー
   document.getElementById('close-dialog').addEventListener('click', closeDialog);
   document.getElementById('news-share-overlay').addEventListener('click', closeDialog);
+  
+  // 認証警告のボタン
+  if (articleData.requiresAuth) {
+    document.getElementById('use-visible-only')?.addEventListener('click', () => {
+      document.getElementById('auth-warning').style.display = 'none';
+      showStatus('見えている部分だけを使用します。', 'success');
+    });
+    
+    document.getElementById('login-first')?.addEventListener('click', () => {
+      showStatus('記事ページでログインしてから、もう一度ブックマークレットを実行してください。', 'info');
+      setTimeout(() => closeDialog(), 2000);
+    });
+  }
   
   // Facebook投稿
   document.getElementById('share-facebook').addEventListener('click', async () => {
