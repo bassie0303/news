@@ -105,7 +105,7 @@ async function openLoginPage(platform, postText) {
       message = 'Facebookにログインしてください。ログイン後、このボタンをもう一度クリックしてください。';
       break;
     case 'threads':
-      loginUrl = 'https://www.threads.net/login';
+      loginUrl = 'https://www.threads.com/login';
       message = 'Threadsにログインしてください。ログイン後、このボタンをもう一度クリックしてください。';
       break;
     case 'x':
@@ -214,7 +214,7 @@ async function shareToFacebook() {
     
     // 新しいタブでFacebookを開く
     const fbTab = await chrome.tabs.create({
-      url: 'https://www.facebook.com/?sk=h_chr',
+      url: 'https://www.facebook.com/',
       active: true
     });
     
@@ -255,7 +255,7 @@ async function shareToThreads() {
     await navigator.clipboard.writeText(postText);
     
     const threadsTab = await chrome.tabs.create({
-      url: 'https://www.threads.net/new',
+      url: 'https://www.threads.com/',
       active: true
     });
     
@@ -449,7 +449,7 @@ async function shareToAll() {
     
     // 1. Facebookタブを開く
     const fbTab = await chrome.tabs.create({
-      url: 'https://www.facebook.com/?sk=h_chr',
+      url: 'https://www.facebook.com/',
       active: false
     });
     
@@ -458,7 +458,7 @@ async function shareToAll() {
     
     // 2. Threadsタブを開く
     const threadsTab = await chrome.tabs.create({
-      url: 'https://www.threads.net/new',
+      url: 'https://www.threads.com/',
       active: false
     });
     
