@@ -90,6 +90,15 @@
     .all-btn:hover {
       background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
     }
+    .reset-btn {
+      background: #6c757d;
+      font-size: 11px;
+      padding: 8px;
+      margin-top: 10px;
+    }
+    .reset-btn:hover {
+      background: #5a6268;
+    }
     .status {
       margin-top: 15px;
       padding: 10px;
@@ -116,10 +125,28 @@
       opacity: 0.6;
       pointer-events: none;
     }
+    .login-info {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      color: #856404;
+    }
+    .login-info strong {
+      display: block;
+      margin-bottom: 5px;
+    }
   </style>
 </head>
 <body>
   <h2>📰 記事をシェア</h2>
+  
+  <div class="login-info">
+    <strong>💡 初回利用時</strong>
+    各SNSのボタンをクリックすると、ログインページが開きます。ログイン後、もう一度ボタンをクリックしてください。
+  </div>
   
   <div class="article-info">
     <h3>記事情報</h3>
@@ -136,6 +163,7 @@
     <button class="facebook-btn" id="share-facebook">Facebookに投稿</button>
     <button class="threads-btn" id="share-threads">Threadsに投稿</button>
     <button class="x-btn" id="share-x">Xに投稿</button>
+    <button class="reset-btn" id="reset-login" title="ログイン状態をリセット">🔄 ログイン状態をリセット</button>
   </div>
 
   <div class="status" id="status"></div>

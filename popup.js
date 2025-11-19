@@ -76,16 +76,74 @@ let articleData = {
   fullText: ''
 };
 
+// ログイン状態を管理
+const LOGIN_STATUS_KEY = 'sns_login_status';
+
+// ログイン状態をチェック
+async function checkLoginStatus(platform) {
+  const status = await chrome.storage.local.get(LOGIN_STATUS_KEY);
+  const loginStatus = status[LOGIN_STATUS_KEY] || {};
+  return loginStatus[platform] || false;
+}
+
+// ログイン状態を保存
+async function saveLoginStatus(platform, isLoggedIn) {
+  const status = await chrome.storage.local.get(LOGIN_STATUS_KEY);
+  const loginStatus = status[LOGIN_STATUS_KEY] || {};
+  loginStatus[platform] = isLoggedIn;
+  await chrome.storage.local.set({ [LOGIN_STATUS_KEY]: loginStatus });
+}
+
+// ログインページを開く
+async function openLoginPage(platform, postText) {
+  let loginUrl;
+  let message;
+  
+  switch(platform) {
+    case 'facebook':
+      loginUrl = 'https://www.facebook.com/login';
+      message = 'Facebookにログインしてください。ログイン後、このボタンをもう一度クリックしてください。';
+      break;
+    case 'threads':
+      loginUrl = 'https://www.threads.net/login';
+      message = 'Threadsにログインしてください。ログイン後、このボタンをもう一度クリックしてください。';
+      break;
+    case 'x':
+      loginUrl = 'https://twitter.com/i/flow/login';
+      message = 'Xにログインしてください。ログイン後、このボタンをもう一度クリックしてください。';
+      break;
+  }
+  
+  // クリップボードにコピー
+  await navigator.clipboard.writeText(postText);
+  
+  // ログインページを開く
+  await chrome.tabs.create({
+    url: loginUrl,
+    active: true
+  });
+  
+  showStatus(message, 'info');
+  
+  // ログイン完了を待つメッセージ
+  setTimeout(() => {
+    if (confirm(`${platform}にログインしましたか？\n\nログインが完了したら「OK」を押してください。\n投稿内容はクリップボードにコピーされています。`)) {
+      saveLoginStatus(platform, true);
+      showStatus('ログイン状態を保存しました。もう一度投稿ボタンをクリックしてください。', 'success');
+    }
+  }, 5000);
+}
+
 // ステータス表示関数
 function showStatus(message, type = 'info') {
   const statusEl = document.getElementById('status');
   statusEl.textContent = message;
   statusEl.className = `status ${type}`;
   
-  // 3秒後に非表示
+  // 5秒後に非表示
   setTimeout(() => {
     statusEl.className = 'status';
-  }, 3000);
+  }, 5000);
 }
 
 // ボタンのローディング状態を切り替え
@@ -134,6 +192,14 @@ async function shareToFacebook() {
   
   try {
     const postText = formatForFacebook(articleData.title, articleData.excerpt, articleData.url);
+    const isLoggedIn = await checkLoginStatus('facebook');
+    
+    if (!isLoggedIn) {
+      // 初回：ログインページを開く
+      setLoading(false);
+      await openLoginPage('facebook', postText);
+      return;
+    }
     
     // クリップボードにコピー
     await navigator.clipboard.writeText(postText);
@@ -168,6 +234,14 @@ async function shareToThreads() {
   
   try {
     const postText = formatForThreads(articleData.title, articleData.excerpt, articleData.url);
+    const isLoggedIn = await checkLoginStatus('threads');
+    
+    if (!isLoggedIn) {
+      // 初回：ログインページを開く
+      setLoading(false);
+      await openLoginPage('threads', postText);
+      return;
+    }
     
     // クリップボードにコピー
     await navigator.clipboard.writeText(postText);
@@ -200,6 +274,14 @@ async function shareToX() {
   
   try {
     const postText = formatForX(articleData.title, articleData.excerpt, articleData.url);
+    const isLoggedIn = await checkLoginStatus('x');
+    
+    if (!isLoggedIn) {
+      // 初回：ログインページを開く
+      setLoading(false);
+      await openLoginPage('x', postText);
+      return;
+    }
     
     // クリップボードにコピー
     await navigator.clipboard.writeText(postText);
@@ -333,6 +415,22 @@ async function shareToAll() {
   showStatus('すべてのSNSに投稿中...', 'info');
   
   try {
+    // ログイン状態をチェック
+    const fbLoggedIn = await checkLoginStatus('facebook');
+    const threadsLoggedIn = await checkLoginStatus('threads');
+    const xLoggedIn = await checkLoginStatus('x');
+    
+    if (!fbLoggedIn || !threadsLoggedIn || !xLoggedIn) {
+      setLoading(false);
+      const notLoggedIn = [];
+      if (!fbLoggedIn) notLoggedIn.push('Facebook');
+      if (!threadsLoggedIn) notLoggedIn.push('Threads');
+      if (!xLoggedIn) notLoggedIn.push('X');
+      
+      showStatus(`以下のSNSにログインが必要です: ${notLoggedIn.join(', ')}。各SNSのボタンを個別にクリックしてログインしてください。`, 'error');
+      return;
+    }
+    
     // 各SNS用のテキストを準備
     const fbText = formatForFacebook(articleData.title, articleData.excerpt, articleData.url);
     const threadsText = formatForThreads(articleData.title, articleData.excerpt, articleData.url);
@@ -399,6 +497,12 @@ async function shareToAll() {
   }
 }
 
+// ログイン状態をリセット（デバッグ用）
+async function resetLoginStatus() {
+  await chrome.storage.local.remove(LOGIN_STATUS_KEY);
+  showStatus('ログイン状態をリセットしました', 'success');
+}
+
 // イベントリスナーを設定
 document.addEventListener('DOMContentLoaded', () => {
   // 記事情報を読み込み
@@ -409,4 +513,5 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('share-facebook').addEventListener('click', shareToFacebook);
   document.getElementById('share-threads').addEventListener('click', shareToThreads);
   document.getElementById('share-x').addEventListener('click', shareToX);
+  document.getElementById('reset-login').addEventListener('click', resetLoginStatus);
 });
